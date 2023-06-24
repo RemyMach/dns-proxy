@@ -1,7 +1,9 @@
 package main
 
 import (
+	"dns-proxy/config"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -23,6 +25,7 @@ var dnsMap = map[string]string{
 var dnsMapMutex = &sync.Mutex{}
 
 func main() {
+    config.Init()
 	dns.HandleFunc(".", handleRequest)
 	go func() {
 		server := &dns.Server{Addr: ":53", Net: "udp"}
@@ -39,7 +42,8 @@ func main() {
 func checkToken(r *http.Request) bool {
 	authHeader := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-
+    fmt.Println(token)
+    fmt.Println(os.Getenv("API_KEY"))
 	return token == os.Getenv("API_KEY")
 }
 

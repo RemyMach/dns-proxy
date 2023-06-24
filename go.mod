@@ -3,6 +3,7 @@ module dns-proxy
 go 1.18
 
 require (
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/miekg/dns v1.1.55 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.2.0 // indirect

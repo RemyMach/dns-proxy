@@ -42,8 +42,6 @@ func main() {
 func checkToken(r *http.Request) bool {
 	authHeader := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-    fmt.Println(token)
-    fmt.Println(os.Getenv("API_KEY"))
 	return token == os.Getenv("API_KEY")
 }
 

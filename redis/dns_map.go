@@ -1,5 +1,7 @@
 package redis
 
+import "errors"
+
 func AddInDnsMap(entry string, address string) {
 	redisClient := GetRedisClient()
 
@@ -12,8 +14,25 @@ func DeleteInDnsMap(entry string) {
 	redisClient.Del("dns:" + entry)
 }
 
-func GetInDnsMap(entry string) {
+func GetInDnsMap(entry string) (string, error) {
 	redisClient := GetRedisClient()
 
-	redisClient.Get("dns:" + entry)
+	element := redisClient.Get("dns:" + entry)
+	if element.Err() {
+		return "", errors.New("error its impossible")
+	}
+
+	return element.Val(), nil
+}
+
+func GetAllDnsMap() []byte {
+	redisClient := GetRedisClient()
+
+	elements := redisClient.Get("dns:*")
+
+	if elements.Err() {
+		return []byte{}
+	}
+
+	return elements.Val()
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"dns-proxy/config"
+	"dns-proxy/redis"
 	"encoding/json"
 	"log"
 	"net"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	mymap "dns-proxy/mymap"
+	mymap "dns-proxy/my_map"
 
 	"github.com/miekg/dns"
 )
@@ -20,13 +21,14 @@ type entry struct {
 }
 
 func main() {
-    config.Init()
+	config.Init()
 	dns.HandleFunc(".", handleRequest)
 	go func() {
 		server := &dns.Server{Addr: ":53", Net: "udp"}
 		log.Fatal(server.ListenAndServe())
 	}()
-	
+
+	redis.InitRedis()
 	http.HandleFunc("/health", handleHealthCheck)
 	http.HandleFunc("/add", handleAdd)
 	http.HandleFunc("/list", handleList)     // Ajout de la route pour lister les entrées
@@ -72,7 +74,11 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Domain or IP not provided", http.StatusBadRequest)
 		return
 	}
-	mymap.AddInDnsMap(data.Domain+".", data.IP)
+	if os.Getenv("CONFIG_STORAGE") != "REDIS" {
+		mymap.AddInDnsMap(data.Domain+".", data.IP)
+	} else {
+		redis.AddInDnsMap(data.Domain+".", data.IP)
+	}
 }
 
 func handleList(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +94,12 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	// 	http.Error(w, "Failed to serialize data", http.StatusInternalServerError)
 	// 	return
 	// }
-	list := mymap.GetAllDnsMap()
+	var list []byte
+	if os.Getenv("CONFIG_STORAGE") != "REDIS" {
+		list = mymap.GetAllDnsMap()
+	} else {
+		list = redis.GetAllDnsMap()
+	}
 	w.Write(list)
 }
 
@@ -120,7 +131,11 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	// dnsMapMutex.Lock()
 	// delete(dnsMap, data.Domain+".")
 	// dnsMapMutex.Unlock()
-	mymap.DeleteInDnsMap(data.Domain+".")
+	if os.Getenv("CONFIG_STORAGE") != "REDIS" {
+		mymap.DeleteInDnsMap(data.Domain + ".")
+	} else {
+		redis.DeleteInDnsMap(data.Domain + ".")
+	}
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -133,7 +148,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 			// dnsMapMutex.Lock()
 			// ip, ok := dnsMap[question.Name]
 			// dnsMapMutex.Unlock()
-			ip, err := mymap.GetInDnsMap(question.Name)
+			var ip string
+			var err error
+			if os.Getenv("CONFIG_STORAGE") != "REDIS" {
+				ip, err = mymap.GetInDnsMap(question.Name)
+			} else {
+				ip, err = redis.GetInDnsMap(question.Name)
+			}
 
 			if err == nil {
 				rr, _ := dns.NewRR(question.Name + " IN A " + ip)

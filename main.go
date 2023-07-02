@@ -3,13 +3,13 @@ package main
 import (
 	"dns-proxy/config"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
+
+	mymap "dns-proxy/mymap"
 
 	"github.com/miekg/dns"
 )
@@ -19,11 +19,6 @@ type entry struct {
 	IP     string `json:"ip"`
 }
 
-var dnsMap = map[string]string{
-	"pomme.worker.stuga-cloud.tech.": "65.109.94.8",
-}
-var dnsMapMutex = &sync.Mutex{}
-
 func main() {
     config.Init()
 	dns.HandleFunc(".", handleRequest)
@@ -31,7 +26,7 @@ func main() {
 		server := &dns.Server{Addr: ":53", Net: "udp"}
 		log.Fatal(server.ListenAndServe())
 	}()
-
+	
 	http.HandleFunc("/health", handleHealthCheck)
 	http.HandleFunc("/add", handleAdd)
 	http.HandleFunc("/list", handleList)     // Ajout de la route pour lister les entrées
@@ -77,10 +72,7 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Domain or IP not provided", http.StatusBadRequest)
 		return
 	}
-
-	dnsMapMutex.Lock()
-	dnsMap[data.Domain+"."] = data.IP
-	dnsMapMutex.Unlock()
+	mymap.AddInDnsMap(data.Domain+".", data.IP)
 }
 
 func handleList(w http.ResponseWriter, r *http.Request) {
@@ -88,15 +80,16 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	dnsMapMutex.Lock()
-	defer dnsMapMutex.Unlock()
+	// dnsMapMutex.Lock()
+	// defer dnsMapMutex.Unlock()
 
-	b, err := json.Marshal(dnsMap)
-	if err != nil {
-		http.Error(w, "Failed to serialize data", http.StatusInternalServerError)
-		return
-	}
-	w.Write(b)
+	// b, err := json.Marshal(dnsMap)
+	// if err != nil {
+	// 	http.Error(w, "Failed to serialize data", http.StatusInternalServerError)
+	// 	return
+	// }
+	list := mymap.GetAllDnsMap()
+	w.Write(list)
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -124,9 +117,10 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dnsMapMutex.Lock()
-	delete(dnsMap, data.Domain+".")
-	dnsMapMutex.Unlock()
+	// dnsMapMutex.Lock()
+	// delete(dnsMap, data.Domain+".")
+	// dnsMapMutex.Unlock()
+	mymap.DeleteInDnsMap(data.Domain+".")
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -136,11 +130,12 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 	for _, question := range r.Question {
 		switch question.Qtype {
 		case dns.TypeA:
-			dnsMapMutex.Lock()
-			ip, ok := dnsMap[question.Name]
-			dnsMapMutex.Unlock()
+			// dnsMapMutex.Lock()
+			// ip, ok := dnsMap[question.Name]
+			// dnsMapMutex.Unlock()
+			ip, err := mymap.GetInDnsMap(question.Name)
 
-			if ok {
+			if err == nil {
 				rr, _ := dns.NewRR(question.Name + " IN A " + ip)
 				m.Answer = append(m.Answer, rr)
 			} else {

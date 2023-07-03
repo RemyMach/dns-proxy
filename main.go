@@ -94,13 +94,20 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	// 	http.Error(w, "Failed to serialize data", http.StatusInternalServerError)
 	// 	return
 	// }
-	var list []byte
+
 	if os.Getenv("CONFIG_STORAGE") != "REDIS" {
-		list = mymap.GetAllDnsMap()
+		list := mymap.GetAllDnsMap()
+		w.Write(list)
 	} else {
-		list = redis.GetAllDnsMap()
+		mapDns := redis.GetAllDnsMap()
+		jsonData, err := json.Marshal(mapDns)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonData)
 	}
-	w.Write(list)
 }
 
 func handleDelete(w http.ResponseWriter, r *http.Request) {

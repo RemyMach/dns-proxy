@@ -46,6 +46,3 @@ func GetAllDnsMap() []byte {
 	return b
 }
 
-func InitMap() {
-	dnsMap["pomme.worker.stuga-cloud.tech."] = "65.109.94.8"
-}

@@ -58,8 +58,6 @@ func handleAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Nous supposons que le corps de la requête contient un JSON
-	// avec les champs "domain" et "ip".
 	var data struct {
 		Domain string `json:"domain"`
 		IP     string `json:"ip"`
